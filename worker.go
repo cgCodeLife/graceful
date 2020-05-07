@@ -137,16 +137,26 @@ func (w *worker) waitSignal() {
 	w.stop()
 }
 
-// TODO: shutdown in parallel
 func (w *worker) stop() {
 	w.Lock()
 	defer w.Unlock()
+	var wg sync.WaitGroup
+	wg.Add(len(w.servers))
 	for _, server := range w.servers {
-		ctx, cancel := context.WithTimeout(context.TODO(), w.opt.stopTimeout)
-		defer cancel()
-		err := server.Shutdown(ctx)
-		if err != nil {
-			log.Printf("shutdown server error: %v\n", err)
-		}
+		go func() {
+			defer wg.Done()
+			if w.opt.shutdownCallBack != nil {
+				server.listener.Close()
+				w.opt.shutdownCallBack()
+				return
+			}
+			ctx, cancel := context.WithTimeout(context.TODO(), w.opt.stopTimeout)
+			defer cancel()
+			err := server.Shutdown(ctx)
+			if err != nil {
+				log.Printf("shutdown server error: %v\n", err)
+			}
+		}()
 	}
+	wg.Wait()
 }

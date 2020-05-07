@@ -24,14 +24,28 @@ var (
 	StartedAt time.Time
 )
 
+type Cb func()
+
 type option struct {
 	reloadSignals []syscall.Signal
 	stopSignals   []syscall.Signal
 	watchInterval time.Duration
 	stopTimeout   time.Duration
+	shutdownCallBack Cb
 }
 
 type Option func(o *option)
+
+//This is a callback function that closes the current connection,
+//similar to the shutdown of net / http.Here, the control of the connection
+//is handed over to the upper-layer application and the time is not limited.
+//This case is used to handle the scenario of long connections, such as the closure of websocket.
+//Don't configure this parameter unless needed
+func WithShutdownCallback(cb Cb) Option {
+	return func(o *option) {
+		o.shutdownCallBack = cb
+	}
+}
 
 // WithReloadSignals set reload signals, otherwise, default ones are used
 func WithReloadSignals(sigs []syscall.Signal) Option {
